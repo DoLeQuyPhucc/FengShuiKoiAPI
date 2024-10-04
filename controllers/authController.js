@@ -2,6 +2,10 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
+// Danh sách lưu trữ refresh token tạm thời (có thể lưu vào DB)
+let refreshTokens = [];
+
+// Đăng nhập
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -16,15 +20,24 @@ exports.login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
+    // Tạo accessToken
+    const accessToken = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
+    // Tạo refreshToken
+    const refreshToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    refreshTokens.push(refreshToken); // Lưu lại refreshToken
+
     res.json({
       message: "Login successful",
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user._id,
         name: user.name,
@@ -38,7 +51,7 @@ exports.login = async (req, res) => {
   }
 };
 
-// Register
+// Đăng ký
 exports.register = async (req, res) => {
   const { name, email, password, birthYear, gender } = req.body;
 
@@ -62,15 +75,22 @@ exports.register = async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
     );
 
+    const refreshToken = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      process.env.REFRESH_TOKEN_SECRET
+    );
+    refreshTokens.push(refreshToken); // Lưu lại refreshToken
+
     res.json({
       message: "User registered successfully",
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -82,4 +102,37 @@ exports.register = async (req, res) => {
     console.error(err);
     res.status(500).json({ message: "Server error" });
   }
+};
+
+// Refresh Token
+exports.refreshToken = (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+  if (!refreshTokens.includes(token)) {
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+
+  jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: "Token is no longer valid" });
+
+    const newAccessToken = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      accessToken: newAccessToken,
+    });
+  });
+};
+
+// Đăng xuất (xóa refreshToken)
+exports.logout = (req, res) => {
+  const { token } = req.body;
+  refreshTokens = refreshTokens.filter(t => t !== token); // Xóa refreshToken
+  res.json({ message: "Logged out successfully" });
 };
