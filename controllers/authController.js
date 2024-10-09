@@ -2,7 +2,6 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-// Danh sách lưu trữ refresh token tạm thời (có thể lưu vào DB)
 let refreshTokens = [];
 
 // Đăng nhập
@@ -116,7 +115,8 @@ exports.refreshToken = (req, res) => {
   }
 
   jwt.verify(token, process.env.REFRESH_TOKEN_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ message: "Token is no longer valid" });
+    if (err)
+      return res.status(403).json({ message: "Token is no longer valid" });
 
     const newAccessToken = jwt.sign(
       { id: user.id, role: user.role },
@@ -130,9 +130,24 @@ exports.refreshToken = (req, res) => {
   });
 };
 
+// Lấy thông tin user hiện tại
+exports.me = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password"); // Không trả về password
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({ user });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 // Đăng xuất (xóa refreshToken)
 exports.logout = (req, res) => {
   const { token } = req.body;
-  refreshTokens = refreshTokens.filter(t => t !== token); // Xóa refreshToken
+  refreshTokens = refreshTokens.filter((t) => t !== token); // Xóa refreshToken
   res.json({ message: "Logged out successfully" });
 };
