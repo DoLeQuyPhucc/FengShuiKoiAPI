@@ -8,6 +8,7 @@ const {
   me,
 } = require("../controllers/authController");
 const verifyToken = require("../middlewares/authMiddleware");
+const checkRole = require("../middlewares/roleMiddleware");
 
 // Route login
 router.post("/login", login);
@@ -22,6 +23,6 @@ router.post("/refresh-token", refreshToken);
 router.post("/logout", logout);
 
 // Route get user info
-router.get("/me", verifyToken, me);
+router.get("/me", verifyToken, checkRole(["user"]), me);
 
 module.exports = router;
