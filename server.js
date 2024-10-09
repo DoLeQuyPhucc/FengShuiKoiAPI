@@ -61,6 +61,8 @@ app.use(express.json());
 // Import routes
 app.use("/api/auth", require("./routes/authRoutes"));
 
+app.use("/api/blog", require("./routes/blogRoutes"));
+
 // Khởi động server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
