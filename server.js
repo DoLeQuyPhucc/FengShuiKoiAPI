@@ -63,6 +63,8 @@ app.use("/api/auth", require("./routes/authRoutes"));
 
 app.use("/api/blog", require("./routes/blogRoutes"));
 
+app.use("/api/consultation", require("./routes/consultationRoutes"));
+
 // Khởi động server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
