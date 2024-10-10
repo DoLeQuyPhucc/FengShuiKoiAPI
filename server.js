@@ -3,13 +3,13 @@ const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const socketIo = require("socket.io");
 const http = require("http");
+const Message = require("./models/Message");
 dotenv.config();
 
 const app = express();
-
 const server = http.createServer(app);
 
-// Socket.io
+// Socket.io setup
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -17,25 +17,39 @@ const io = socketIo(server, {
   },
 });
 
-// Socket Connection
+// Socket connection
 io.on("connection", (socket) => {
-  console.log("A user connected: ", socket.id);
+  console.log("A user connected:", socket.id);
 
   // Nhận tin nhắn từ client
-  socket.on("sendMessage", (messageData) => {
-    // Lưu message vào database nếu cần
-    console.log(messageData);
-    // Phát lại message cho các client khác
-    io.emit("receiveMessage", messageData);
+  socket.on("sendMessage", async (messageData) => {
+    const { sender, receiver, message } = messageData;
+
+    // Lưu tin nhắn vào MongoDB
+    const newMessage = new Message({
+      sender,
+      receiver,
+      message,
+    });
+
+    try {
+      await newMessage.save();
+      console.log("Message saved:", messageData);
+
+      // Phát lại message cho các client khác
+      io.emit("receiveMessage", messageData);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   });
 
   // Ngắt kết nối
   socket.on("disconnect", () => {
-    console.log("User disconnected: ", socket.id);
+    console.log("User disconnected:", socket.id);
   });
 });
 
-// Tắt CORS
+// CORS headers
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
@@ -60,13 +74,11 @@ app.use(express.json());
 
 // Import routes
 app.use("/api/auth", require("./routes/authRoutes"));
-
 app.use("/api/blog", require("./routes/blogRoutes"));
-
 app.use("/api/consultation", require("./routes/consultationRoutes"));
 
 // Khởi động server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port http://localhost:${PORT}`);
 });
